@@ -1,0 +1,89 @@
+﻿@page
+@model IndexModel
+@{
+    ViewData["Title"] = "Painel Geral";
+}
+
+<div class="page-header">
+    <div>
+        <h1>PAINEL <span>FORJA TEAM</span></h1>
+        <p>Visão geral de alunos, convênios e presença no tatame.</p>
+    </div>
+    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+        <a asp-page="/Checkin" class="btn btn-primary"><i data-lucide="qr-code"></i> Registrar Check-in</a>
+        <a asp-page="/Alunos" class="btn btn-outline"><i data-lucide="user-plus"></i> Novo Aluno</a>
+    </div>
+</div>
+
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-info">
+            <span>Alunos Ativos</span>
+            <strong>@Model.TotalAlunosAtivos</strong>
+        </div>
+        <div class="stat-icon"><i data-lucide="users"></i></div>
+    </div>
+
+    <div class="stat-card">
+        <div class="stat-info">
+            <span>Check-ins Hoje</span>
+            <strong>@Model.CheckinsHoje</strong>
+        </div>
+        <div class="stat-icon"><i data-lucide="check-circle"></i></div>
+    </div>
+
+    <div class="stat-card">
+        <div class="stat-info">
+            <span>Wellhub / TotalPass</span>
+            <strong>@Model.AlunosConvenio</strong>
+        </div>
+        <div class="stat-icon"><i data-lucide="credit-card"></i></div>
+    </div>
+
+    <div class="stat-card">
+        <div class="stat-info">
+            <span>Turmas na Grade</span>
+            <strong>@Model.TotalTurmas</strong>
+        </div>
+        <div class="stat-icon"><i data-lucide="calendar"></i></div>
+    </div>
+</div>
+
+<div class="panel">
+    <h2 class="panel-title"><i data-lucide="activity"></i> Últimos Check-ins no Tatame</h2>
+
+    @if (!Model.UltimasPresencas.Any())
+    {
+        <p style="color: var(--text-muted);">Nenhum check-in registrado ainda. Cadastre um aluno e registre a primeira presença!</p>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Data / Hora</th>
+                        <th>Aluno</th>
+                        <th>Turma</th>
+                        <th>Professor</th>
+                        <th>Origem</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in Model.UltimasPresencas)
+                    {
+                        <tr>
+                            <td>@item.DataHora.ToString("dd/MM/yyyy HH:mm")</td>
+                            <td><strong>@item.Aluno?.Nome</strong></td>
+                            <td>@item.Turma?.Modalidade (@item.Turma?.Categoria) - @item.Turma?.Horario</td>
+                            <td>@item.Turma?.Professor</td>
+                            <td>
+                                <span class="badge badge-@item.Origem.ToLower()">@item.Origem</span>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>

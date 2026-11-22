@@ -1,0 +1,260 @@
+@page
+@model CronometroModel
+@{
+    ViewData["Title"] = "Cronômetro de Treino";
+}
+
+<div class="page-header">
+    <div>
+        <h1>CRONÔMETRO <span>FORJA TEAM</span></h1>
+        <p>Timer de rounds e descanso para Muay Thai, Boxe, Jiu-Jitsu e preparação física.</p>
+    </div>
+    <a asp-page="/AreaAluno" class="btn btn-outline btn-sm">Voltar à Área do Aluno</a>
+</div>
+
+<div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 24px;">
+    <button type="button" class="btn btn-outline btn-sm" onclick="setPreset(180, 60, 5, 'MUAY THAI / BOXE')">Muay Thai / Boxe (3m × 1m)</button>
+    <button type="button" class="btn btn-outline btn-sm" onclick="setPreset(300, 60, 5, 'JIU-JITSU ROLA')">Jiu-Jitsu Rola (5m × 1m)</button>
+    <button type="button" class="btn btn-outline btn-sm" onclick="setPreset(20, 10, 8, 'TABATA HIIT')">Tabata (20s × 10s)</button>
+</div>
+
+<div class="panel" id="timerPanel" style="text-align: center; padding: 42px 24px; border-top: 5px solid var(--primary);">
+    <span id="faseBadge" style="display: inline-block; padding: 6px 18px; border-radius: 99px; font-family: var(--font-heading); font-size: 1rem; letter-spacing: 2px; text-transform: uppercase; background-color: rgba(220, 38, 38, 0.15); color: var(--primary); margin-bottom: 12px;">
+        PRONTO PARA TREINAR
+    </span>
+
+    <div style="font-family: var(--font-heading); font-size: 1.3rem; color: var(--text-muted); letter-spacing: 1px; margin-bottom: 8px;">
+        ROUND <span id="roundAtual">1</span> DE <span id="roundTotal">5</span>
+    </div>
+
+    <div id="tempoDisplay" style="font-family: var(--font-heading); font-size: clamp(4.5rem, 14vw, 8.5rem); font-weight: 700; line-height: 1; letter-spacing: 2px; margin: 16px 0 28px; color: var(--text-main);">
+        03:00
+    </div>
+
+    <div style="display: flex; justify-content: center; gap: 14px; flex-wrap: wrap;">
+        <button type="button" id="btnIniciar" class="btn btn-primary" style="min-width: 150px;" onclick="toggleTimer()">Iniciar</button>
+        <button type="button" class="btn btn-outline" style="min-width: 140px;" onclick="resetTimer()">Reiniciar</button>
+    </div>
+</div>
+
+<div class="panel">
+    <h2 class="panel-title">Configurar Tempos</h2>
+    <div class="form-grid">
+        <div class="form-group">
+            <label>Tempo do Round (segundos)</label>
+            <input type="number" id="cfgRound" class="form-control" value="180" min="5" max="3600" onchange="syncConfig()" />
+        </div>
+        <div class="form-group">
+            <label>Tempo de Descanso (segundos)</label>
+            <input type="number" id="cfgDescanso" class="form-control" value="60" min="0" max="600" onchange="syncConfig()" />
+        </div>
+        <div class="form-group">
+            <label>Preparação Inicial (segundos)</label>
+            <input type="number" id="cfgPrep" class="form-control" value="3" min="0" max="60" onchange="syncConfig()" />
+        </div>
+        <div class="form-group">
+            <label>Quantidade de Rounds</label>
+            <input type="number" id="cfgRounds" class="form-control" value="5" min="1" max="50" onchange="syncConfig()" />
+        </div>
+    </div>
+</div>
+
+<script>
+    var roundDur = 180;
+    var restDur = 60;
+    var prepDur = 3;
+    var totalRds = 5;
+
+    var curRd = 1;
+    var phase = "READY";
+    var secLeft = 180;
+    var timerId = null;
+    var audioCtx = null;
+
+    function getAudioCtx() {
+        if (!audioCtx) {
+            var Ctx = window.AudioContext || window.webkitAudioContext;
+            if (Ctx) {
+                audioCtx = new Ctx();
+            }
+        }
+        if (audioCtx && audioCtx.state === "suspended") {
+            audioCtx.resume();
+        }
+        return audioCtx;
+    }
+
+    function playSound(kind) {
+        try {
+            var ctx = getAudioCtx();
+            if (!ctx) return;
+
+            var now = ctx.currentTime;
+
+            if (kind === "gong") {
+                var freqs = [440, 659.25, 987.77];
+                freqs.forEach(function (f, idx) {
+                    var osc = ctx.createOscillator();
+                    var gain = ctx.createGain();
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+
+                    osc.type = idx === 0 ? "triangle" : "sine";
+                    osc.frequency.setValueAtTime(f, now);
+
+                    var peak = idx === 0 ? 0.35 : 0.14;
+                    var dur = idx === 0 ? 1.1 : 0.65;
+                    gain.gain.setValueAtTime(peak, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + dur);
+
+                    osc.start(now);
+                    osc.stop(now + dur);
+                });
+            } else {
+                var beepOsc = ctx.createOscillator();
+                var beepGain = ctx.createGain();
+                beepOsc.connect(beepGain);
+                beepGain.connect(ctx.destination);
+
+                beepOsc.type = "square";
+                beepOsc.frequency.setValueAtTime(1046.5, now);
+                beepGain.gain.setValueAtTime(0.12, now);
+                beepGain.gain.setValueAtTime(0.001, now + 0.12);
+
+                beepOsc.start(now);
+                beepOsc.stop(now + 0.13);
+            }
+        } catch (e) { }
+    }
+
+    function fmt(s) {
+        var min = Math.floor(s / 60);
+        var sec = s % 60;
+        return (min < 10 ? "0" : "") + min + ":" + (sec < 10 ? "0" : "") + sec;
+    }
+
+    function paint() {
+        document.getElementById("tempoDisplay").textContent = fmt(secLeft);
+        document.getElementById("roundAtual").textContent = curRd;
+        document.getElementById("roundTotal").textContent = totalRds;
+
+        var badge = document.getElementById("faseBadge");
+        var panel = document.getElementById("timerPanel");
+
+        if (phase === "FIGHT") {
+            badge.textContent = "ROUND EM ANDAMENTO";
+            badge.style.color = "#DC2626";
+            panel.style.borderTopColor = "#DC2626";
+        } else if (phase === "REST") {
+            badge.textContent = "DESCANSO";
+            badge.style.color = "#4ADE80";
+            panel.style.borderTopColor = "#16A34A";
+        } else if (phase === "PREP") {
+            badge.textContent = "PREPARE-SE";
+            badge.style.color = "#FBBF24";
+            panel.style.borderTopColor = "#D97706";
+        } else if (phase === "DONE") {
+            badge.textContent = "TREINO CONCLUÍDO";
+            badge.style.color = "#4ADE80";
+            panel.style.borderTopColor = "#16A34A";
+        } else {
+            badge.textContent = "PRONTO PARA TREINAR";
+            badge.style.color = "#DC2626";
+            panel.style.borderTopColor = "#DC2626";
+        }
+    }
+
+    function step() {
+        if (secLeft > 1) {
+            secLeft--;
+            if (secLeft <= 3) {
+                playSound("beep");
+            }
+            paint();
+            return;
+        }
+
+        if (phase === "PREP") {
+            phase = "FIGHT";
+            secLeft = roundDur;
+            playSound("gong");
+        } else if (phase === "FIGHT") {
+            playSound("gong");
+            if (curRd >= totalRds) {
+                phase = "DONE";
+                secLeft = 0;
+                clearInterval(timerId);
+                timerId = null;
+                document.getElementById("btnIniciar").textContent = "Iniciar";
+            } else if (restDur > 0) {
+                phase = "REST";
+                secLeft = restDur;
+            } else {
+                curRd++;
+                secLeft = roundDur;
+            }
+        } else if (phase === "REST") {
+            curRd++;
+            phase = "FIGHT";
+            secLeft = roundDur;
+            playSound("gong");
+        }
+        paint();
+    }
+
+    function toggleTimer() {
+        getAudioCtx();
+        var btn = document.getElementById("btnIniciar");
+        if (timerId !== null) {
+            clearInterval(timerId);
+            timerId = null;
+            btn.textContent = "Continuar";
+            return;
+        }
+
+        if (phase === "READY" || phase === "DONE") {
+            curRd = 1;
+            if (prepDur > 0) {
+                phase = "PREP";
+                secLeft = prepDur;
+            } else {
+                phase = "FIGHT";
+                secLeft = roundDur;
+                playSound("gong");
+            }
+        }
+
+        btn.textContent = "Pausar";
+        paint();
+        timerId = setInterval(step, 1000);
+    }
+
+    function resetTimer() {
+        if (timerId !== null) {
+            clearInterval(timerId);
+            timerId = null;
+        }
+        phase = "READY";
+        curRd = 1;
+        secLeft = roundDur;
+        document.getElementById("btnIniciar").textContent = "Iniciar";
+        paint();
+    }
+
+    function syncConfig() {
+        roundDur = parseInt(document.getElementById("cfgRound").value, 10) || 180;
+        restDur = parseInt(document.getElementById("cfgDescanso").value, 10) || 0;
+        prepDur = parseInt(document.getElementById("cfgPrep").value, 10) || 0;
+        totalRds = parseInt(document.getElementById("cfgRounds").value, 10) || 5;
+        resetTimer();
+    }
+
+    function setPreset(r, d, n, label) {
+        document.getElementById("cfgRound").value = r;
+        document.getElementById("cfgDescanso").value = d;
+        document.getElementById("cfgPrep").value = 3;
+        document.getElementById("cfgRounds").value = n;
+        syncConfig();
+        document.getElementById("faseBadge").textContent = label;
+    }
+</script>

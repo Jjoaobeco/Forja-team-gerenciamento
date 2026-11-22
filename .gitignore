@@ -1,0 +1,16 @@
+# Build e cache do .NET
+[Bb]in/
+[Oo]bj/
+*.user
+*.suo
+*.cache
+.vs/
+.vscode/
+
+# Banco SQLite local (evita subir dados de teste)
+*.db
+*.db-shm
+*.db-wal
+
+# Segredos / configurações locais com senha ou API key
+appsettings.Development.json

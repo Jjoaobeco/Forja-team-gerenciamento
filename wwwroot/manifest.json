@@ -1,0 +1,20 @@
+{
+  "id": "/",
+  "name": "Forja Team - Gestão e Tatame",
+  "short_name": "Forja Team",
+  "description": "Sistema de check-in, evolução, cronômetro e gestão da Forja Team.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0A0A0A",
+  "theme_color": "#DC2626",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/logo2.png",
+      "sizes": "5000x5000",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

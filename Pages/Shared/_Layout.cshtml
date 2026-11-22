@@ -1,0 +1,104 @@
+﻿<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - Forja Team App</title>
+    <link rel="icon" type="image/png" href="~/logo2.png" asp-append-version="true" />
+    <link rel="apple-touch-icon" href="~/logo2.png" asp-append-version="true" />
+    <title>@ViewData["Title"] - Forja Team App</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Oswald:wght@500;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <link rel="manifest" href="~/manifest.json" />
+    <meta name="theme-color" content="#DC2626" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+</head>
+<body>
+    @{
+        var isAuthenticated = User.Identity?.IsAuthenticated == true;
+        var isAdmin = isAuthenticated && User.IsInRole("Admin");
+        var isAluno = isAuthenticated && User.IsInRole("Aluno");
+        var brandPage = isAdmin ? "/Index" : (isAluno ? "/AreaAluno" : "/Login");
+    }
+
+    <header class="app-header">
+        <div class="container header-content">
+            <a asp-page="@brandPage" class="brand">
+                <img src="~/logo2.png" alt="Logo Forja Team" class="brand-logo" />
+                <div class="brand-text">
+                    <span class="brand-title">FORJA <span>TEAM</span></span>
+                    <span class="brand-sub">SISTEMA DE GESTÃO</span>
+                </div>
+            </a>
+
+            <nav class="app-nav" id="app-nav">
+                @if (isAdmin)
+                {
+                    <a asp-page="/Index"><i data-lucide="layout-dashboard"></i> Painel</a>
+                    <a asp-page="/Debitos"><i data-lucide="receipt"></i> Débitos</a>
+                    <a asp-page="/Alunos"><i data-lucide="users"></i> Alunos</a>
+                    <a asp-page="/Turmas"><i data-lucide="calendar"></i> Turmas</a>
+                    <a asp-page="/AreaAluno"><i data-lucide="award"></i> Área do Aluno</a>
+                    <a asp-page="/Checkin"><i data-lucide="qr-code"></i> Check-in</a>
+                    <a asp-page="/Cronometro"><i data-lucide="timer"></i> Cronômetro</a>
+                    <form method="post" asp-page="/Login" asp-page-handler="Sair" style="display:inline;">
+                        <button type="submit" class="btn btn-outline btn-sm">Sair</button>
+                    </form>
+                }
+                else if (isAluno)
+                {
+                    <a asp-page="/AreaAluno"><i data-lucide="award"></i> Minha Área</a>
+                    <a asp-page="/Cronometro"><i data-lucide="timer"></i> Cronômetro</a>
+                    <form method="post" asp-page="/Login" asp-page-handler="Sair" style="display:inline;">
+                        <button type="submit" class="btn btn-outline btn-sm">Sair</button>
+                    </form>
+                }
+                else
+                {
+                    <a asp-page="/Cadastrar"><i data-lucide="key-round"></i> Definir Senha</a>
+                    <a asp-page="/Login" class="btn btn-primary btn-sm">Entrar</a>
+                }
+            </nav>
+
+            <button class="menu-toggle" id="menu-toggle" aria-label="Menu">
+                <i data-lucide="menu"></i>
+            </button>
+        </div>
+    </header>
+
+    <main class="container app-main">
+        @RenderBody()
+    </main>
+
+    <footer class="app-footer">
+        <div class="container">
+            <p>&copy; 2026 Forja Team - Escola de Lutas • Sarzedo - MG</p>
+        </div>
+    </footer>
+
+    <script>
+        lucide.createIcons();
+        const menuToggle = document.getElementById('menu-toggle');
+        const appNav = document.getElementById('app-nav');
+        if (menuToggle && appNav) {
+            menuToggle.addEventListener('click', () => {
+                appNav.classList.toggle('active');
+            });
+        }
+    </script>
+    @await RenderSectionAsync("Scripts", required: false)
+    <script>
+        if ("serviceWorker" in navigator) {
+            window.addEventListener("load", function () {
+                navigator.serviceWorker.register("/service-worker.js").catch(function () { });
+            });
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,132 @@
+@page
+@model CheckinModel
+@{
+    ViewData["Title"] = "Check-in";
+}
+
+<div class="page-header">
+    <div>
+        <h1>CHECK-IN <span>NO TATAME</span></h1>
+        <p>Registre presenças do app, Wellhub ou TotalPass nas turmas da Forja Team.</p>
+    </div>
+</div>
+
+@if (!string.IsNullOrEmpty(Model.MensagemSucesso))
+{
+    <div class="alert-success">@Model.MensagemSucesso</div>
+}
+
+@if (!string.IsNullOrEmpty(Model.MensagemErro))
+{
+    <div style="background-color: rgba(220, 38, 38, 0.15); border: 1px solid rgba(220, 38, 38, 0.45); color: #FCA5A5; padding: 14px 18px; border-radius: 8px; margin-bottom: 24px; font-size: 0.92rem;">
+        @Model.MensagemErro
+    </div>
+}
+
+<div class="panel">
+    <h2 class="panel-title"><i data-lucide="qr-code"></i> Novo Check-in</h2>
+
+    @if (!Model.Alunos.Any())
+    {
+        <p style="color: var(--text-muted); margin-bottom: 14px;">Nenhum aluno cadastrado ainda.</p>
+        <a asp-page="/Alunos" class="btn btn-primary btn-sm"><i data-lucide="user-plus"></i> Cadastrar Primeiro Aluno</a>
+    }
+    else
+    {
+        <form method="post">
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>Aluno *</label>
+                    <select asp-for="AlunoId" id="alunoSelect" class="form-control" required>
+                        <option value="">Selecione o aluno...</option>
+                        @foreach (var aluno in Model.Alunos)
+                        {
+                            <option value="@aluno.Id" data-plano="@aluno.TipoPlano">
+                                @aluno.Nome (@aluno.Cpf) — @aluno.TipoPlano [@aluno.Status]
+                            </option>
+                        }
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Turma / Horário *</label>
+                    <select asp-for="TurmaId" class="form-control" required>
+                        <option value="">Selecione a turma...</option>
+                        @foreach (var turma in Model.Turmas)
+                        {
+                            <option value="@turma.Id">
+                                @turma.DiaSemana @turma.Horario — @turma.Modalidade (@turma.Categoria) • @turma.Professor
+                            </option>
+                        }
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Origem do Check-in</label>
+                    <select asp-for="Origem" id="origemSelect" class="form-control">
+                        <option value="App">App / Recepção</option>
+                        <option value="Wellhub">Wellhub</option>
+                        <option value="TotalPass">TotalPass</option>
+                    </select>
+                </div>
+            </div>
+
+            <div style="margin-top: 20px;">
+                <button type="submit" class="btn btn-primary"><i data-lucide="check-circle"></i> Confirmar Check-in</button>
+            </div>
+        </form>
+    }
+</div>
+
+<div class="panel">
+    <h2 class="panel-title"><i data-lucide="list-checks"></i> Presenças de Hoje (@Model.PresencasHoje.Count)</h2>
+
+    @if (!Model.PresencasHoje.Any())
+    {
+        <p style="color: var(--text-muted);">Nenhuma presença registrada hoje.</p>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Hora</th>
+                        <th>Aluno</th>
+                        <th>Turma</th>
+                        <th>Origem</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var p in Model.PresencasHoje)
+                    {
+                        <tr>
+                            <td>@p.DataHora.ToString("HH:mm")</td>
+                            <td><strong>@p.Aluno?.Nome</strong></td>
+                            <td>@p.Turma?.DiaSemana @p.Turma?.Horario — @p.Turma?.Modalidade (@p.Turma?.Categoria)</td>
+                            <td><span class="badge badge-@p.Origem.ToLower()">@p.Origem</span></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+@section Scripts {
+    <script>
+        const alunoSelect = document.getElementById('alunoSelect');
+        const origemSelect = document.getElementById('origemSelect');
+        if (alunoSelect && origemSelect) {
+            alunoSelect.addEventListener('change', () => {
+                const selected = alunoSelect.options[alunoSelect.selectedIndex];
+                const plano = selected?.getAttribute('data-plano');
+                if (plano === 'Wellhub' || plano === 'TotalPass') {
+                    origemSelect.value = plano;
+                } else if (plano === 'Direto') {
+                    origemSelect.value = 'App';
+                }
+            });
+        }
+    </script>
+}
