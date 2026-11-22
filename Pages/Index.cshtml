@@ -15,6 +15,39 @@
     </div>
 </div>
 
+@if (Model.CheckinsPendentes > 0 || Model.MensalidadesPendentes > 0)
+{
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; margin-bottom: 24px;">
+        @if (Model.CheckinsPendentes > 0)
+        {
+            <div style="background-color: rgba(245, 158, 11, 0.14); border: 1px solid rgba(245, 158, 11, 0.45); border-radius: 10px; padding: 14px 18px; display: flex; justify-content: space-between; align-items: center; gap: 12px;">
+                <div style="display: flex; align-items: center; gap: 10px; color: #FCD34D;">
+                    <i data-lucide="clock"></i>
+                    <div>
+                        <strong style="display: block; font-size: 0.92rem;">@Model.CheckinsPendentes check-in(s) aguardando autorização</strong>
+                        <small style="opacity: 0.85;">Solicitações enviadas pelos alunos pelo app.</small>
+                    </div>
+                </div>
+                <a asp-page="/Checkin" class="btn btn-primary btn-sm" style="white-space: nowrap;">Revisar</a>
+            </div>
+        }
+
+        @if (Model.MensalidadesPendentes > 0)
+        {
+            <div style="background-color: rgba(220, 38, 38, 0.14); border: 1px solid rgba(220, 38, 38, 0.45); border-radius: 10px; padding: 14px 18px; display: flex; justify-content: space-between; align-items: center; gap: 12px;">
+                <div style="display: flex; align-items: center; gap: 10px; color: #FCA5A5;">
+                    <i data-lucide="alert-circle"></i>
+                    <div>
+                        <strong style="display: block; font-size: 0.92rem;">@Model.MensalidadesPendentes mensalidade(s) pendente(s)</strong>
+                        <small style="opacity: 0.85;">Alunos do plano direto com pagamento em aberto.</small>
+                    </div>
+                </div>
+                <a asp-page="/Debitos" asp-route-Filtro="pendentes" class="btn btn-outline btn-sm" style="white-space: nowrap;">Ver Débitos</a>
+            </div>
+        }
+    </div>
+}
+
 <div class="stats-grid">
     <div class="stat-card">
         <div class="stat-info">
@@ -54,7 +87,7 @@
 
     @if (!Model.UltimasPresencas.Any())
     {
-        <p style="color: var(--text-muted);">Nenhum check-in registrado ainda. Cadastre um aluno e registre a primeira presença!</p>
+        <p style="color: var(--text-muted);">Nenhum check-in confirmado ainda. Cadastre um aluno e registre a primeira presença!</p>
     }
     else
     {

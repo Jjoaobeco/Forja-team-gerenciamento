@@ -7,7 +7,14 @@
 <div class="page-header">
     <div>
         <h1>CHECK-IN <span>NO TATAME</span></h1>
-        <p>Registre presenças do app, Wellhub ou TotalPass nas turmas da Forja Team.</p>
+        @if (Model.EhAdmin)
+        {
+            <p>Registre presenças, autorize solicitações dos alunos e acompanhe o dia no tatame.</p>
+        }
+        else
+        {
+            <p>Solicite seu check-in na turma. A presença será computada após autorização do administrador.</p>
+        }
     </div>
 </div>
 
@@ -24,29 +31,48 @@
 }
 
 <div class="panel">
-    <h2 class="panel-title"><i data-lucide="qr-code"></i> Novo Check-in</h2>
+    <h2 class="panel-title">
+        <i data-lucide="qr-code"></i> @(Model.EhAdmin ? "Novo Check-in" : "Solicitar Check-in")
+    </h2>
 
-    @if (!Model.Alunos.Any())
+    @if (Model.EhAdmin && !Model.Alunos.Any())
     {
         <p style="color: var(--text-muted); margin-bottom: 14px;">Nenhum aluno cadastrado ainda.</p>
         <a asp-page="/Alunos" class="btn btn-primary btn-sm"><i data-lucide="user-plus"></i> Cadastrar Primeiro Aluno</a>
+    }
+    else if (!Model.EhAdmin && Model.AlunoLogado == null)
+    {
+        <div style="background-color: rgba(220, 38, 38, 0.15); border: 1px solid rgba(220, 38, 38, 0.45); color: #FCA5A5; padding: 14px 18px; border-radius: 8px; font-size: 0.92rem;">
+            Não foi possível identificar o cadastro do aluno na sua sessão. Faça login novamente ou fale com a administração.
+        </div>
     }
     else
     {
         <form method="post">
             <div class="form-grid">
-                <div class="form-group">
-                    <label>Aluno *</label>
-                    <select asp-for="AlunoId" id="alunoSelect" class="form-control" required>
-                        <option value="">Selecione o aluno...</option>
-                        @foreach (var aluno in Model.Alunos)
-                        {
-                            <option value="@aluno.Id" data-plano="@aluno.TipoPlano">
-                                @aluno.Nome (@aluno.Cpf) — @aluno.TipoPlano [@aluno.Status]
-                            </option>
-                        }
-                    </select>
-                </div>
+                @if (Model.EhAdmin)
+                {
+                    <div class="form-group">
+                        <label>Aluno *</label>
+                        <select asp-for="AlunoId" id="alunoSelect" class="form-control" required>
+                            <option value="">Selecione o aluno...</option>
+                            @foreach (var aluno in Model.Alunos)
+                            {
+                                <option value="@aluno.Id" data-plano="@aluno.TipoPlano">
+                                    @aluno.Nome (@aluno.Cpf) — @aluno.TipoPlano [@aluno.Status]
+                                </option>
+                            }
+                        </select>
+                    </div>
+                }
+                else
+                {
+                    <div class="form-group">
+                        <label>Aluno</label>
+                        <input type="text" class="form-control" value="@Model.AlunoLogado!.Nome (@Model.AlunoLogado.TipoPlano)" readonly disabled />
+                        <input type="hidden" asp-for="AlunoId" value="@Model.AlunoLogado.Id" />
+                    </div>
+                }
 
                 <div class="form-group">
                     <label>Turma / Horário *</label>
@@ -61,22 +87,78 @@
                     </select>
                 </div>
 
-                <div class="form-group">
-                    <label>Origem do Check-in</label>
-                    <select asp-for="Origem" id="origemSelect" class="form-control">
-                        <option value="App">App / Recepção</option>
-                        <option value="Wellhub">Wellhub</option>
-                        <option value="TotalPass">TotalPass</option>
-                    </select>
-                </div>
+                @if (Model.EhAdmin)
+                {
+                    <div class="form-group">
+                        <label>Origem do Check-in</label>
+                        <select asp-for="Origem" id="origemSelect" class="form-control">
+                            <option value="App">App / Recepção</option>
+                            <option value="Wellhub">Wellhub</option>
+                            <option value="TotalPass">TotalPass</option>
+                        </select>
+                    </div>
+                }
+                else
+                {
+                    <input type="hidden" asp-for="Origem" value="Aluno" />
+                }
             </div>
 
             <div style="margin-top: 20px;">
-                <button type="submit" class="btn btn-primary"><i data-lucide="check-circle"></i> Confirmar Check-in</button>
+                <button type="submit" class="btn btn-primary">
+                    <i data-lucide="check-circle"></i> @(Model.EhAdmin ? "Confirmar Check-in" : "Enviar Solicitação de Check-in")
+                </button>
             </div>
         </form>
     }
 </div>
+
+@if (Model.EhAdmin)
+{
+    <div class="panel">
+        <h2 class="panel-title"><i data-lucide="clock"></i> Check-ins Pendentes de Autorização (@Model.CheckinsPendentes.Count)</h2>
+
+        @if (!Model.CheckinsPendentes.Any())
+        {
+            <p style="color: var(--text-muted);">Nenhuma solicitação de check-in aguardando autorização no momento.</p>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Hora</th>
+                            <th>Aluno</th>
+                            <th>Turma</th>
+                            <th>Origem</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var p in Model.CheckinsPendentes)
+                        {
+                            <tr>
+                                <td>@p.DataHora.ToString("HH:mm")</td>
+                                <td><strong>@p.Aluno?.Nome</strong></td>
+                                <td>@p.Turma?.DiaSemana @p.Turma?.Horario — @p.Turma?.Modalidade (@p.Turma?.Categoria)</td>
+                                <td><span class="badge badge-@p.Origem.ToLower()">@p.Origem</span></td>
+                                <td style="display: flex; gap: 8px; flex-wrap: wrap;">
+                                    <form method="post" asp-page-handler="Aprovar" asp-route-id="@p.Id" style="display: inline;">
+                                        <button type="submit" class="btn btn-primary btn-sm">Aprovar</button>
+                                    </form>
+                                    <form method="post" asp-page-handler="Recusar" asp-route-id="@p.Id" style="display: inline;">
+                                        <button type="submit" class="btn btn-sm" style="background-color: rgba(220, 38, 38, 0.18); color: #FCA5A5; border: 1px solid rgba(220, 38, 38, 0.45);">Recusar</button>
+                                    </form>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+}
 
 <div class="panel">
     <h2 class="panel-title"><i data-lucide="list-checks"></i> Presenças de Hoje (@Model.PresencasHoje.Count)</h2>
@@ -95,6 +177,7 @@
                         <th>Aluno</th>
                         <th>Turma</th>
                         <th>Origem</th>
+                        <th>Status</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -105,6 +188,16 @@
                             <td><strong>@p.Aluno?.Nome</strong></td>
                             <td>@p.Turma?.DiaSemana @p.Turma?.Horario — @p.Turma?.Modalidade (@p.Turma?.Categoria)</td>
                             <td><span class="badge badge-@p.Origem.ToLower()">@p.Origem</span></td>
+                            <td>
+                                @if (p.Validada)
+                                {
+                                    <span class="badge badge-ativo">Confirmado</span>
+                                }
+                                else
+                                {
+                                    <span class="badge badge-pendente">Aguardando Admin</span>
+                                }
+                            </td>
                         </tr>
                     }
                 </tbody>

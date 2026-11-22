@@ -2,12 +2,13 @@
 @model DebitosModel
 @{
     ViewData["Title"] = "Débitos e Planos";
+    var filtroAtual = (Model.Filtro ?? "todos").ToLowerInvariant();
 }
 
 <div class="page-header">
     <div>
         <h1>DÉBITOS & <span>PLANOS</span></h1>
-        <p>Controle de mensalidades do Plano Direto e validação de convênios Wellhub / TotalPass.</p>
+        <p>Controle de mensalidades do Plano Direto e repasses de convênios Wellhub / TotalPass.</p>
     </div>
 </div>
 
@@ -35,19 +36,70 @@
 
     <div class="stat-card">
         <div class="stat-info">
-            <span>Alunos Convênio</span>
-            <strong>@Model.ConveniosCount</strong>
+            <span>Repasse Convênios (Mês)</span>
+            <strong>R$ @Model.ReceitaConveniosMes.ToString("N2")</strong>
+            <small style="display: block; color: var(--text-muted); font-size: 0.75rem; margin-top: 2px;">
+                @Model.ConveniosCount alunos • Silver R$ @Model.ValorCheckinWellhub.ToString("N2") | TotalPass R$ @Model.ValorCheckinTotalPass.ToString("N2")
+            </small>
         </div>
         <div class="stat-icon"><i data-lucide="shield-check"></i></div>
     </div>
 </div>
 
 <div class="panel">
-    <h2 class="panel-title"><i data-lucide="receipt"></i> Situação Financeira por Aluno</h2>
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px; margin-bottom: 20px;">
+        <h2 class="panel-title" style="margin-bottom: 0;"><i data-lucide="receipt"></i> Situação Financeira por Aluno</h2>
+
+        <form method="get" style="display: flex; gap: 8px; flex-wrap: wrap;">
+            <input type="hidden" name="Filtro" value="@filtroAtual" />
+            <input type="text"
+                   name="Busca"
+                   value="@Model.Busca"
+                   class="form-control"
+                   placeholder="Buscar por nome ou CPF..."
+                   style="min-width: 220px;" />
+            <button type="submit" class="btn btn-primary btn-sm">Buscar</button>
+            @if (!string.IsNullOrWhiteSpace(Model.Busca))
+            {
+                <a asp-page="/Debitos" asp-route-Filtro="@filtroAtual" class="btn btn-outline btn-sm">Limpar</a>
+            }
+        </form>
+    </div>
+
+    <!-- ABAS / BOTÕES DE FILTRO -->
+    <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px;">
+        <a asp-page="/Debitos"
+           asp-route-Filtro="todos"
+           asp-route-Busca="@Model.Busca"
+           class="btn btn-sm @(filtroAtual == "todos" ? "btn-primary" : "btn-outline")">
+            Todos (@Model.TotalCount)
+        </a>
+
+        <a asp-page="/Debitos"
+           asp-route-Filtro="pagos"
+           asp-route-Busca="@Model.Busca"
+           class="btn btn-sm @(filtroAtual == "pagos" ? "btn-primary" : "btn-outline")">
+            Pagos / Em Dia (@Model.PagosCount)
+        </a>
+
+        <a asp-page="/Debitos"
+           asp-route-Filtro="pendentes"
+           asp-route-Busca="@Model.Busca"
+           class="btn btn-sm @(filtroAtual == "pendentes" ? "btn-primary" : "btn-outline")">
+            Pendentes (@Model.PendentesCount)
+        </a>
+
+        <a asp-page="/Debitos"
+           asp-route-Filtro="convenios"
+           asp-route-Busca="@Model.Busca"
+           class="btn btn-sm @(filtroAtual == "convenios" ? "btn-primary" : "btn-outline")">
+            Convênios (@Model.ConveniosCount)
+        </a>
+    </div>
 
     @if (!Model.Alunos.Any())
     {
-        <p style="color: var(--text-muted);">Nenhum aluno cadastrado ainda.</p>
+        <p style="color: var(--text-muted);">Nenhum aluno encontrado para o filtro selecionado.</p>
     }
     else
     {
@@ -57,8 +109,8 @@
                     <tr>
                         <th>Aluno</th>
                         <th>Plano</th>
-                        <th>Mensalidade</th>
-                        <th>Vencimento</th>
+                        <th>Valor / Repasse Mês</th>
+                        <th>Vencimento / Check-ins</th>
                         <th>Situação</th>
                         <th>Ações</th>
                     </tr>
@@ -67,6 +119,10 @@
                     @foreach (var aluno in Model.Alunos)
                     {
                         var ehConvenio = aluno.TipoPlano == "Wellhub" || aluno.TipoPlano == "TotalPass";
+                        var checkinsMes = Model.CheckinsMesPorAluno.GetValueOrDefault(aluno.Id, 0);
+                        var tarifaConvenio = aluno.TipoPlano == "Wellhub" ? Model.ValorCheckinWellhub : Model.ValorCheckinTotalPass;
+                        var repasseAlunoMes = checkinsMes * tarifaConvenio;
+
                         <tr>
                             <td>
                                 <strong>@aluno.Nome</strong><br />
@@ -76,7 +132,8 @@
                             <td>
                                 @if (ehConvenio)
                                 {
-                                    <span style="color: var(--text-muted);">Repasse Convênio</span>
+                                    <strong>R$ @repasseAlunoMes.ToString("N2")</strong><br />
+                                    <small style="color: var(--text-muted);">R$ @tarifaConvenio.ToString("N2") / check-in</small>
                                 }
                                 else
                                 {
@@ -86,7 +143,7 @@
                             <td>
                                 @if (ehConvenio)
                                 {
-                                    <span style="color: var(--text-muted);">Via Check-in</span>
+                                    <span>@checkinsMes check-in(s) validado(s) no mês</span>
                                 }
                                 else
                                 {
@@ -111,12 +168,20 @@
                                 @if (!ehConvenio)
                                 {
                                     <div style="display: flex; gap: 6px;">
-                                        <form method="post" asp-page-handler="MarcarPago" asp-route-id="@aluno.Id">
+                                        <form method="post"
+                                              asp-page-handler="MarcarPago"
+                                              asp-route-id="@aluno.Id"
+                                              asp-route-filtro="@filtroAtual"
+                                              asp-route-busca="@Model.Busca">
                                             <button type="submit" class="btn btn-primary btn-sm">Confirmar Pagto</button>
                                         </form>
                                         @if (aluno.SituacaoPagamento == "Em Dia")
                                         {
-                                            <form method="post" asp-page-handler="MarcarPendente" asp-route-id="@aluno.Id">
+                                            <form method="post"
+                                                  asp-page-handler="MarcarPendente"
+                                                  asp-route-id="@aluno.Id"
+                                                  asp-route-filtro="@filtroAtual"
+                                                  asp-route-busca="@Model.Busca">
                                                 <button type="submit" class="btn btn-outline btn-sm">Pendente</button>
                                             </form>
                                         }
@@ -124,7 +189,7 @@
                                 }
                                 else
                                 {
-                                    <small style="color: var(--text-muted);">Sem cobrança direta</small>
+                                    <small style="color: var(--text-muted);">Repasse via portal</small>
                                 }
                             </td>
                         </tr>

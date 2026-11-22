@@ -35,7 +35,7 @@ else
 {
     var aluno = Model.AlunoSelecionado;
 
-    <!-- CARD PRINCIPAL DE EVOLUÇÃO (ESTILO PRINT) -->
+    <!-- CARD PRINCIPAL DE EVOLUÇÃO -->
     <div class="panel" style="border-top: 4px solid var(--primary);">
         <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; margin-bottom: 24px;">
             <div>
@@ -126,6 +126,7 @@ else
                                 <th>Data</th>
                                 <th>Aula</th>
                                 <th>Via</th>
+                                <th>Status</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -135,6 +136,16 @@ else
                                     <td>@item.DataHora.ToString("dd/MM HH:mm")</td>
                                     <td>@item.Turma?.Modalidade (@item.Turma?.Categoria)</td>
                                     <td><span class="badge badge-@item.Origem.ToLower()">@item.Origem</span></td>
+                                    <td>
+                                        @if (item.Validada)
+                                        {
+                                            <span class="badge badge-ativo">Confirmado</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge badge-pendente">Aguardando Admin</span>
+                                        }
+                                    </td>
                                 </tr>
                             }
                         </tbody>
@@ -163,7 +174,7 @@ else
                                 <td><strong>#@(i + 1)</strong></td>
                                 <td><strong>@r.Nome</strong></td>
                                 <td>@r.ModalidadePrincipal</td>
-                                <td><strong>@r.Presencas.Count</strong></td>
+                                <td><strong>@r.Presencas.Count(p => p.Validada)</strong></td>
                             </tr>
                         }
                     </tbody>

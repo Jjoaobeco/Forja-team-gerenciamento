@@ -1,47 +1,204 @@
 @page
 @model ForjaTeamApp.Pages.CadastrarModel
 @{
-    ViewData["Title"] = "Definir Senha — Forja Team";
+    ViewData["Title"] = "Definir Senha";
 }
 
-<div class="container py-5" style="max-width: 440px;">
-    <div class="card shadow-sm border-0">
-        <div class="card-body p-4">
-            <h2 class="h4 fw-bold mb-1">Definir Senha do Aluno</h2>
-            <p class="text-muted small mb-4">Use o CPF já cadastrado pela academia para criar sua senha de acesso.</p>
+<style>
+    .auth-wrapper {
+        min-height: calc(100vh - 180px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 24px 12px;
+    }
 
-            @if (!string.IsNullOrWhiteSpace(Model.Erro))
-            {
-                <div class="alert alert-danger py-2 small">
-                    @Model.Erro
-                </div>
-            }
+    .auth-card {
+        width: 100%;
+        max-width: 420px;
+        background: #141417;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-top: 3px solid #DC2626;
+        border-radius: 14px;
+        padding: 32px 28px;
+        box-shadow: 0 20px 45px rgba(0, 0, 0, 0.45);
+        color: #f4f4f5;
+    }
 
-            <form method="post">
-                <div class="mb-3">
-                    <label asp-for="Cpf" class="form-label">Seu CPF cadastrado</label>
-                    <input asp-for="Cpf" class="form-control" placeholder="Ex.: 000.000.000-00" />
-                </div>
+    .auth-header {
+        text-align: center;
+        margin-bottom: 24px;
+    }
 
-                <div class="mb-3">
-                    <label asp-for="Senha" class="form-label">Crie sua senha</label>
-                    <input asp-for="Senha" type="password" class="form-control" />
-                </div>
+    .auth-logo {
+        width: 68px;
+        height: 68px;
+        object-fit: contain;
+        margin-bottom: 10px;
+    }
 
-                <div class="mb-3">
-                    <label asp-for="ConfirmarSenha" class="form-label">Confirme sua senha</label>
-                    <input asp-for="ConfirmarSenha" type="password" class="form-control" />
-                </div>
+    .auth-title {
+        font-family: 'Oswald', sans-serif;
+        font-size: 1.75rem;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        margin: 0;
+        color: #ffffff;
+    }
 
-                <button type="submit" class="btn btn-dark w-100 py-2">Salvar Senha</button>
-            </form>
+    .auth-title span {
+        color: #DC2626;
+    }
 
-            <hr class="my-4" />
+    .auth-subtitle {
+        font-size: 0.875rem;
+        color: #a1a1aa;
+        margin-top: 4px;
+    }
 
-            <div class="text-center small">
-                Já definiu sua senha?
-                <a asp-page="/Login" class="fw-semibold text-decoration-none">Fazer login</a>
+    .auth-field {
+        margin-bottom: 16px;
+    }
+
+    .auth-label {
+        display: block;
+        font-size: 0.82rem;
+        font-weight: 600;
+        color: #d4d4d8;
+        margin-bottom: 6px;
+        letter-spacing: 0.02em;
+    }
+
+    .auth-input {
+        width: 100%;
+        padding: 11px 14px;
+        border-radius: 8px;
+        border: 1px solid #27272a;
+        background: #0c0c0e;
+        color: #ffffff;
+        font-size: 0.95rem;
+        transition: border-color 0.2s, box-shadow 0.2s;
+        box-sizing: border-box;
+    }
+
+    .auth-input:focus {
+        outline: none;
+        border-color: #DC2626;
+        box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.22);
+    }
+
+    .auth-btn {
+        width: 100%;
+        padding: 12px;
+        margin-top: 6px;
+        border: none;
+        border-radius: 8px;
+        background: #DC2626;
+        color: #ffffff;
+        font-family: 'Oswald', sans-serif;
+        font-size: 1.05rem;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        cursor: pointer;
+        transition: background 0.2s, transform 0.1s;
+    }
+
+    .auth-btn:hover {
+        background: #b91c1c;
+    }
+
+    .auth-btn:active {
+        transform: scale(0.99);
+    }
+
+    .auth-alert {
+        padding: 10px 12px;
+        border-radius: 8px;
+        font-size: 0.85rem;
+        margin-bottom: 16px;
+    }
+
+    .auth-alert-error {
+        background: rgba(220, 38, 38, 0.15);
+        border: 1px solid rgba(220, 38, 38, 0.45);
+        color: #fca5a5;
+    }
+
+    .auth-divider {
+        border: none;
+        border-top: 1px solid rgba(255, 255, 255, 0.08);
+        margin: 22px 0 16px;
+    }
+
+    .auth-footer-text {
+        text-align: center;
+        font-size: 0.85rem;
+        color: #a1a1aa;
+    }
+
+    .auth-link {
+        color: #f87171;
+        font-weight: 600;
+        text-decoration: none;
+        margin-left: 4px;
+    }
+
+    .auth-link:hover {
+        color: #fca5a5;
+        text-decoration: underline;
+    }
+</style>
+
+<div class="auth-wrapper">
+    <div class="auth-card">
+        <div class="auth-header">
+            <img src="~/logo2.png" alt="Logo Forja Team" class="auth-logo" />
+            <h1 class="auth-title">FORJA <span>TEAM</span></h1>
+            <p class="auth-subtitle">Use seu CPF cadastrado na academia para definir sua senha</p>
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(Model.Erro))
+        {
+            <div class="auth-alert auth-alert-error">
+                @Model.Erro
             </div>
+        }
+
+        <form method="post">
+            <div class="auth-field">
+                <label asp-for="Cpf" class="auth-label">Seu CPF cadastrado</label>
+                <input asp-for="Cpf"
+                       class="auth-input"
+                       placeholder="Ex.: 000.000.000-00"
+                       autocomplete="username" />
+            </div>
+
+            <div class="auth-field">
+                <label asp-for="Senha" class="auth-label">Crie sua senha</label>
+                <input asp-for="Senha"
+                       type="password"
+                       class="auth-input"
+                       placeholder="Mínimo de 4 caracteres"
+                       autocomplete="new-password" />
+            </div>
+
+            <div class="auth-field">
+                <label asp-for="ConfirmarSenha" class="auth-label">Confirme sua senha</label>
+                <input asp-for="ConfirmarSenha"
+                       type="password"
+                       class="auth-input"
+                       placeholder="Digite a senha novamente"
+                       autocomplete="new-password" />
+            </div>
+
+            <button type="submit" class="auth-btn">Salvar Senha</button>
+        </form>
+
+        <hr class="auth-divider" />
+
+        <div class="auth-footer-text">
+            Já definiu sua senha?
+            <a asp-page="/Login" class="auth-link">Fazer login</a>
         </div>
     </div>
 </div>

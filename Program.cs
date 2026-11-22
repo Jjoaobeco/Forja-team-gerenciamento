@@ -56,6 +56,45 @@ using (var scope = app.Services.CreateScope())
         );
         db.SaveChanges();
     }
+
+    if (app.Environment.IsDevelopment() && db.Alunos.Count() < 30)
+    {
+        var nomes = new[]
+        {
+            "Lucas Silva", "Gabriel Santos", "Mateus Oliveira", "Rafael Souza", "Pedro Lima",
+            "Bruno Costa", "Thiago Pereira", "Felipe Alves", "Diego Ferreira", "Gustavo Rodrigues",
+            "Mariana Almeida", "Camila Nascimento", "Juliana Araújo", "Fernanda Ribeiro", "Amanda Carvalho",
+            "Larissa Gomes", "Beatriz Martins", "Carolina Rocha", "Letícia Barbosa", "Patrícia Dias",
+            "Rodrigo Teixeira", "Leonardo Mendes", "Eduardo Freitas", "Vinícius Cardoso", "Henrique Correia",
+            "Daniel Monteiro", "André Moreira", "Caio Pinto", "Renan Cavalcanti", "Igor Nogueira"
+        };
+
+        var planos = new[] { "Mensal", "Trimestral", "Wellhub", "TotalPass" };
+        var random = new Random(42);
+        var faltam = 30 - db.Alunos.Count();
+
+        for (int i = 0; i < faltam; i++)
+        {
+            var indice = db.Alunos.Count() + i;
+            var nome = nomes[indice % nomes.Length];
+            var cpfNumero = (10000000100L + indice * 137L).ToString("D11");
+            var plano = planos[random.Next(planos.Length)];
+            var ativo = i % 8 != 0;
+
+            db.Alunos.Add(new Aluno
+            {
+                Nome = nome,
+                Cpf = cpfNumero,
+                Status = ativo ? "Ativo" : "Inativo",
+                TipoPlano = plano,
+                SituacaoPagamento = !ativo ? "Pendente" : (i % 6 == 0 ? "Atrasado" : "Em Dia"),
+                AulasNaGraduacaoAtual = random.Next(0, 20),
+                MetaAulasGraduacao = 24
+            });
+        }
+
+        db.SaveChanges();
+    }
 }
 
 if (!app.Environment.IsDevelopment())
@@ -135,7 +174,7 @@ app.MapPost("/api/presencas/registrar", async (
         {
             liberado = false,
             duplicada = true,
-            motivo = "Presença já registrada para este aluno nessa turma nas últimas 2 horas.",
+            motivo = "Presença já registrada ou aguardando aprovação para este aluno nessa turma nas últimas 2 horas.",
             aluno = aluno.Nome,
             turma = $"{turma.Modalidade} ({turma.Horario})",
             aulasNaGraduacaoAtual = aluno.AulasNaGraduacaoAtual
@@ -146,32 +185,107 @@ app.MapPost("/api/presencas/registrar", async (
         ? (ehConvenio ? aluno.TipoPlano : "Api")
         : req.Origem.Trim();
 
+    var pendenteAprovacao = string.Equals(origem, "Aluno", StringComparison.OrdinalIgnoreCase);
+
     var presenca = new Presenca
     {
         AlunoId = aluno.Id,
         TurmaId = turma.Id,
         DataHora = DateTime.Now,
         Origem = origem,
-        Validada = true
+        Validada = !pendenteAprovacao
     };
 
-    aluno.AulasNaGraduacaoAtual += 1;
+    if (!pendenteAprovacao)
+    {
+        aluno.AulasNaGraduacaoAtual += 1;
+    }
 
     db.Presencas.Add(presenca);
     await db.SaveChangesAsync();
 
     return Results.Ok(new
     {
-        liberado = true,
+        liberado = !pendenteAprovacao,
+        pendente = pendenteAprovacao,
         duplicada = false,
+        presencaId = presenca.Id,
         aluno = aluno.Nome,
         turma = $"{turma.Modalidade} ({turma.Horario})",
         origem,
+        motivo = pendenteAprovacao ? "Check-in solicitado. Aguardando autorização do administrador." : null,
         aulasNaGraduacaoAtual = aluno.AulasNaGraduacaoAtual,
         metaAulasGraduacao = aluno.MetaAulasGraduacao,
         percentualEvolucao = aluno.PercentualEvolucao
     });
 });
+
+// Endpoints exclusivos do Admin para listar, aprovar ou recusar check-ins pendentes
+app.MapGet("/api/presencas/pendentes", async (AppDbContext db) =>
+{
+    var pendentes = await db.Presencas
+        .Include(p => p.Aluno)
+        .Include(p => p.Turma)
+        .Where(p => !p.Validada)
+        .OrderByDescending(p => p.DataHora)
+        .Select(p => new
+        {
+            p.Id,
+            p.DataHora,
+            p.Origem,
+            AlunoId = p.AlunoId,
+            AlunoNome = p.Aluno != null ? p.Aluno.Nome : "",
+            AlunoCpf = p.Aluno != null ? p.Aluno.Cpf : "",
+            Turma = p.Turma != null ? $"{p.Turma.Modalidade} ({p.Turma.DiaSemana} - {p.Turma.Horario})" : ""
+        })
+        .ToListAsync();
+
+    return Results.Ok(pendentes);
+}).RequireAuthorization(policy => policy.RequireRole("Admin"));
+
+app.MapPost("/api/presencas/{id:int}/aprovar", async (int id, AppDbContext db) =>
+{
+    var presenca = await db.Presencas
+        .Include(p => p.Aluno)
+        .FirstOrDefaultAsync(p => p.Id == id);
+
+    if (presenca == null)
+    {
+        return Results.NotFound(new { sucesso = false, motivo = "Check-in não encontrado." });
+    }
+
+    if (!presenca.Validada)
+    {
+        presenca.Validada = true;
+        if (presenca.Aluno != null)
+        {
+            presenca.Aluno.AulasNaGraduacaoAtual += 1;
+        }
+        await db.SaveChangesAsync();
+    }
+
+    return Results.Ok(new
+    {
+        sucesso = true,
+        presencaId = presenca.Id,
+        aluno = presenca.Aluno?.Nome,
+        aulasNaGraduacaoAtual = presenca.Aluno?.AulasNaGraduacaoAtual
+    });
+}).RequireAuthorization(policy => policy.RequireRole("Admin"));
+
+app.MapPost("/api/presencas/{id:int}/recusar", async (int id, AppDbContext db) =>
+{
+    var presenca = await db.Presencas.FirstOrDefaultAsync(p => p.Id == id);
+    if (presenca == null)
+    {
+        return Results.NotFound(new { sucesso = false, motivo = "Check-in não encontrado." });
+    }
+
+    db.Presencas.Remove(presenca);
+    await db.SaveChangesAsync();
+
+    return Results.Ok(new { sucesso = true, presencaId = id });
+}).RequireAuthorization(policy => policy.RequireRole("Admin"));
 
 app.Run();
 
